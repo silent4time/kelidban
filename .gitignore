@@ -1,0 +1,6 @@
+/config.php
+/storage/*
+!/storage/.htaccess
+/public/kb-*/
+*.zip
+/tools/_*

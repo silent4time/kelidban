@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Kelidban server tool — usage: sudo kelidban <command>   (sudo kelidban help)
+set -uo pipefail
+
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+APP="$(cd "$(dirname "$SELF")/.." && pwd)"
+SRC="${KB_SRC:-/opt/kelidban-src}"
+
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  echo "Run as root:  sudo kelidban ${*:-help}"
+  exit 1
+fi
+
+if [[ "${1:-}" == "update" ]]; then
+  shift
+  if [[ ! -d "$SRC/.git" ]]; then
+    echo "[x] $SRC is not a git checkout. See README (install section)."
+    exit 1
+  fi
+  git -C "$SRC" pull --ff-only || exit 1
+  exec bash "$SRC/install.sh" "$@"
+fi
+
+pick_php() {
+  local p
+  for p in php8.4 php8.3 php8.2 php8.1 php; do
+    if command -v "$p" >/dev/null 2>&1 && "$p" -m 2>/dev/null | grep -qi '^pdo_sqlite$'; then
+      echo "$p"
+      return 0
+    fi
+  done
+  return 1
+}
+
+PHP="$(pick_php)" || { echo "[x] No PHP with pdo_sqlite found (apt-get install php-sqlite3)"; exit 1; }
+
+"$PHP" "$APP/bin/kelidban.php" "$@"
+rc=$?
+if [[ -d "$APP/storage" ]]; then
+  chown -R "$(stat -c %U:%G "$APP/storage")" "$APP/storage"
+fi
+exit $rc

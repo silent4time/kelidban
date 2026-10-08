@@ -1,0 +1,14 @@
+Options -Indexes
+ServerSignature Off
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always unset X-Powered-By
+    <FilesMatch "\.(css|js|svg|woff2)$">
+        Header set Cache-Control "public, max-age=604800"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+</IfModule>

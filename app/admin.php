@@ -96,7 +96,6 @@ unset($_SESSION['kb_reveal']);
 $licenses = $pdo->query('SELECT * FROM licenses ORDER BY id DESC LIMIT 200')->fetchAll();
 $orders = $pdo->query("SELECT * FROM orders WHERE status='pending' ORDER BY id DESC LIMIT 50")->fetchAll();
 $cfg = ls_config();
-$base = rtrim((string) $cfg['base_url'], '/');
 $apiSource = ls_api_key_source();
 $apiCreated = ls_meta_get('api_key_created');
 $lastLogin = json_decode((string) ls_meta_get('last_login'), true);
@@ -199,7 +198,7 @@ $csrf = kb_csrf_field();
         <label>یادداشت<textarea name="notes" rows="2"></textarea></label>
         <div class="form-foot">
           <button type="submit" class="btn btn-primary">صدور لایسنس</button>
-          <span class="hint">ربات‌ها از <span class="mono" dir="ltr"><?= ls_h($base) ?>/api/verify.php</span> می‌پرسند.</span>
+          <span class="hint">ربات‌ها مسیر <span class="mono" dir="ltr">/api/verify.php</span> همین سرور را می‌پرسند.</span>
         </div>
       </form>
     </section>
@@ -207,7 +206,7 @@ $csrf = kb_csrf_field();
     <div class="stack">
       <section class="card">
         <h2>اتصال وردپرس (کلید API)</h2>
-        <p class="hint">افزونهٔ لایسنس وردپرس با این کلید روی همین سرور لایسنس می‌سازد و فهرست می‌گیرد. در وردپرس: «تنظیمات» › «سرور لایسنس» › «سرور لایسنس جداگانه»؛ آدرس <span class="mono" dir="ltr"><?= ls_h($base) ?></span> و همین کلید.</p>
+        <p class="hint">افزونهٔ لایسنس وردپرس با این کلید روی همین سرور لایسنس می‌سازد و فهرست می‌گیرد. در وردپرس: «تنظیمات» › «سرور لایسنس» › «سرور لایسنس جداگانه»؛ دامنهٔ همین سرور لایسنس و همین کلید.</p>
         <?php if ($apiSource === 'config'): ?>
           <p><span class="badge ok">فعال</span> کلید از <span class="mono">api_token</span> در <span class="mono">config.php</span> خوانده می‌شود.</p>
         <?php elseif ($apiSource === 'panel'): ?>

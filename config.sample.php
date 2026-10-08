@@ -6,7 +6,7 @@
  */
 return [
     // Public URL of this server (no trailing slash). Bots verify at {base_url}/api/verify.php
-    'base_url' => 'https://license.silentping.ir',
+    'base_url' => 'https://license.example.com',
 
     // The panel password is NOT kept here; set it on the server with:  sudo kelidban password
     // (stored as a hash in the database). An old plaintext value here is converted once, then cleared.
@@ -59,6 +59,6 @@ return [
     'buy_requires_admin_approve' => true,
 
     // Contact shown on the buy page
-    'support_email' => 'silentping.vpn@gmail.com',
+    'support_email' => 'support@example.com',
     'support_telegram' => '',
 ];

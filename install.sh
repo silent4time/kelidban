@@ -275,6 +275,7 @@ if [[ "$home" == *'content="kelidban"'* && "$api" == *'"code"'* ]]; then
   ok "https://$DOMAIN answers from $TARGET (bots' API OK)"
   if [[ "$MODE" == "migrate" ]]; then
     mv "$OLD" "$OLD.old-$TS"
+    chmod 700 "$OLD.old-$TS"
     ok "Old folder renamed to $OLD.old-$TS (also in $BACKUP_DIR); delete it after a few days"
   fi
 else

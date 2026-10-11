@@ -74,25 +74,23 @@ function kb_session_start(): void
     }
     $cfg = ls_config();
     $dir = dirname((string) $cfg['db_path']) . '/sessions';
-    if (is_dir($dir) || @mkdir($dir, 0700, true)) {
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    if (is_dir($dir) && is_writable($dir)) {
         session_save_path($dir);
-        ini_set('session.gc_probability', '1');
-        ini_set('session.gc_divisor', '50');
     }
     ini_set('session.gc_maxlifetime', (string) max(300, (int) $cfg['session_idle_minutes'] * 60));
-    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_strict_mode', '0');
     ini_set('session.use_only_cookies', '1');
     ini_set('session.use_trans_sid', '0');
-    ini_set('session.sid_length', '48');
-    ini_set('session.sid_bits_per_character', '6');
-    $path = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/'))), '/') . '/';
     session_name('kb_sid');
     session_set_cookie_params([
         'lifetime' => 0,
-        'path' => $path,
+        'path' => '/',
         'secure' => kb_is_https(),
         'httponly' => true,
-        'samesite' => 'Strict',
+        'samesite' => 'Lax',
     ]);
     session_start();
 }

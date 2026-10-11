@@ -12,7 +12,7 @@
 | پنل مدیریت | آدرس مخفی؛ با `sudo kelidban url` ببینید |
 | بکاپ‌ها | `/root/kelidban-backups` |
 
-> این ریپو **خصوصی** است. `config.php` و پوشهٔ `storage` (دیتابیس) هرگز در گیت نمی‌روند.
+`config.php` و پوشهٔ `storage` (دیتابیس) هرگز در گیت نمی‌روند.
 
 ---
 
@@ -35,7 +35,7 @@
 ### نصب با یک دستور
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/silent4time/kelidban/main/install.sh | sudo bash
+curl -fsSL https://cdn.jsdelivr.net/gh/silent4time/kelidban@main/install.sh | sudo bash
 ```
 
 اسکریپت اول `apt update` و `apt upgrade` را می‌زند، توکن گیت‌هاب را می‌پرسد، مخزن را می‌گیرد و بعد دامنه و بقیه را خودش می‌پرسد.

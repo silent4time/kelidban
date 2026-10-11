@@ -3,8 +3,7 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/silent4time/kelidban/main/install.sh | sudo bash
 #
-# The script updates the server, asks for a GitHub token if the repo is private,
-# then asks for the domain and the rest itself.
+# The script updates the server, then asks for the domain and the rest itself.
 #
 #   sudo bash install.sh                      run from a git checkout
 #   sudo bash install.sh /root/kelidban.zip   or from a zip of this repo
@@ -34,13 +33,8 @@ if [[ ! -f "${SELF_DIR}/lib/bootstrap.php" ]]; then
   command -v curl >/dev/null 2>&1 || apt-get install -y curl
   SRC_CLONE="/opt/kelidban-src"
   if [[ ! -f "$SRC_CLONE/lib/bootstrap.php" ]]; then
-    token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
-    if [[ -z "$token" && -r /dev/tty ]]; then
-      read -r -p "GitHub token for silent4time/kelidban (Contents: Read): " token </dev/tty || true
-    fi
-    [[ -n "$token" ]] || { echo "[x] a GitHub token is required to download the private repo" >&2; exit 1; }
     rm -rf "$SRC_CLONE"
-    git clone "https://x-access-token:${token}@github.com/silent4time/kelidban.git" "$SRC_CLONE"
+    git clone "https://github.com/silent4time/kelidban.git" "$SRC_CLONE"
   fi
   exec env KELIDBAN_UPDATED=1 bash "$SRC_CLONE/install.sh" "$@"
 fi

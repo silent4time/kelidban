@@ -85,13 +85,18 @@ function kb_session_start(): void
     ini_set('session.use_only_cookies', '1');
     ini_set('session.use_trans_sid', '0');
     session_name('kb_sid');
+    $secure = kb_is_https();
     session_set_cookie_params([
         'lifetime' => 0,
         'path' => '/',
-        'secure' => kb_is_https(),
+        'secure' => $secure,
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
+    $legacy = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/'))), '/') . '/';
+    if ($legacy !== '/') {
+        setcookie('kb_sid', '', ['expires' => time() - 3600, 'path' => $legacy, 'secure' => $secure, 'httponly' => true, 'samesite' => 'Lax']);
+    }
     session_start();
 }
 
@@ -354,7 +359,10 @@ function kb_require_admin(): void
                 'kb_csrf' => bin2hex(random_bytes(32)),
             ];
             ls_meta_set('last_login', json_encode(['at' => ls_now(), 'ip' => $ip]));
-            header('Location: ./', true, 303);
+            session_write_close();
+            $base = rtrim((string) (ls_config()['base_url'] ?? ''), '/');
+            $here = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/'))), '/');
+            header('Location: ' . ($base !== '' ? $base . $here . '/' : $here . '/'), true, 303);
             exit;
         } else {
             usleep(random_int(400000, 900000));

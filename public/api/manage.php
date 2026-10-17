@@ -229,9 +229,10 @@ function lsm_list(string $q, int $limit, int $offset): array
 function lsm_import(array $rows): array
 {
     $pdo = ls_db();
-    $added = $skipped = $invalid = 0;
+    $added = $updated = $skipped = $invalid = 0;
     $ins = $pdo->prepare('INSERT INTO licenses (license_key, domain, months, starts_at, expires_at, status, customer_name, customer_contact, notes, created_at, updated_at)
         VALUES (:k,:d,:m,:s,:e,:st,:cn,:cc,:n,:c,:u)');
+    $upd = $pdo->prepare('UPDATE licenses SET domain=:d, months=:m, starts_at=:s, expires_at=:e, status=:st, customer_name=:cn, customer_contact=:cc, notes=:n, updated_at=:u WHERE license_key=:k');
     foreach ($rows as $r) {
         if (!is_array($r)) {
             $invalid++;
@@ -249,13 +250,10 @@ function lsm_import(array $rows): array
             $invalid++;
             continue;
         }
-        if (ls_get_license_by_key($key)) {
-            $skipped++;
-            continue;
-        }
         $status = in_array($r['status'] ?? '', ['active', 'expired', 'revoked'], true) ? $r['status'] : 'active';
         $start = preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) ($r['starts_at'] ?? '')) ? $r['starts_at'] : ls_now();
-        $ins->execute([
+        $incoming = preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) ($r['updated_at'] ?? '')) ? (string) $r['updated_at'] : ls_now();
+        $fields = [
             ':k' => $key,
             ':d' => $domain,
             ':m' => max(1, (int) ($r['months'] ?? 1)),
@@ -265,12 +263,24 @@ function lsm_import(array $rows): array
             ':cn' => lsm_text($r['customer_name'] ?? null, 190),
             ':cc' => lsm_text($r['customer_contact'] ?? null, 190),
             ':n' => lsm_text($r['notes'] ?? null, 1000),
-            ':c' => ls_now(),
-            ':u' => ls_now(),
-        ]);
+            ':u' => $incoming,
+        ];
+        $existing = ls_get_license_by_key($key);
+        if ($existing) {
+            $local = (string) ($existing['updated_at'] ?? '');
+            if ($local !== '' && $incoming < $local) {
+                $skipped++;
+                continue;
+            }
+            $upd->execute($fields);
+            $updated++;
+            continue;
+        }
+        $fields[':c'] = ls_now();
+        $ins->execute($fields);
         $added++;
     }
-    return ['added' => $added, 'skipped' => $skipped, 'invalid' => $invalid];
+    return ['added' => $added, 'updated' => $updated, 'skipped' => $skipped, 'invalid' => $invalid];
 }
 
 function lsm_public(array $row): array
@@ -287,6 +297,7 @@ function lsm_public(array $row): array
         'customer_contact' => $row['customer_contact'] ?? null,
         'notes' => $row['notes'] ?? null,
         'created_at' => (string) $row['created_at'],
+        'updated_at' => (string) ($row['updated_at'] ?? ''),
         'last_seen' => $row['last_seen'] ?? null,
     ];
     if (isset($row['months_added'])) {

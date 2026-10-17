@@ -88,7 +88,7 @@ is_install() { [[ -f "$1/lib/bootstrap.php" && -f "$1/public/api/verify.php" ]];
 pick_php() {
   local p
   for p in php8.4 php8.3 php8.2 php8.1 php; do
-    if command -v "$p" >/dev/null 2>&1 && "$p" -m 2>/dev/null | grep -qi '^pdo_sqlite$'; then
+    if command -v "$p" >/dev/null 2>&1 && "$p" -r 'exit(extension_loaded("pdo_sqlite") ? 0 : 1);' >/dev/null 2>&1; then
       command -v "$p"
       return 0
     fi

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Kelidban server tool — usage: sudo kelidban <command>   (sudo kelidban help)
+# Kelidban server tool - usage: sudo kelidban <command>   (sudo kelidban help)
+#   sudo kelidban menu   opens the interactive management menu (install.sh)
 set -uo pipefail
 
 SELF="$(readlink -f "${BASH_SOURCE[0]}")"
@@ -11,15 +12,25 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-if [[ "${1:-}" == "update" ]]; then
-  shift
-  if [[ ! -d "$SRC/.git" ]]; then
-    echo "[x] $SRC is not a git checkout. See README (install section)."
-    exit 1
-  fi
-  git -C "$SRC" pull --ff-only || exit 1
-  exec bash "$SRC/install.sh" "$@"
-fi
+# Commands handled by the installer / management script
+installer() {
+  local s
+  for s in "$SRC/install.sh" "$APP/install.sh"; do
+    if [[ -f "$s" ]]; then
+      exec bash "$s" --dir "$APP" "$@"
+    fi
+  done
+  echo "[x] install.sh not found in $SRC or $APP"
+  exit 1
+}
+
+case "${1:-}" in
+  update|menu|check|selfcheck|doctor|ssl|renew|restart|logs|restore|uninstall|reset-password|install)
+    cmd="$1"; shift
+    [[ "$cmd" == "selfcheck" || "$cmd" == "doctor" ]] && cmd="check"
+    installer "$cmd" "$@"
+    ;;
+esac
 
 pick_php() {
   local p

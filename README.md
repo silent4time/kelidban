@@ -2,7 +2,7 @@
 
 سرور صدور و تأیید لایسنس ربات‌ها (۱ تا ۱۲ ماه، قفل روی دامنه) با پنل مدیریت خصوصی.
 
-**نسخه:** 2.0.1 — تغییرات در [CHANGELOG.md](CHANGELOG.md)
+**نسخه:** 2.1.0 — تغییرات در [CHANGELOG.md](CHANGELOG.md)
 
 | مورد | مقدار |
 |------|-------|
@@ -13,6 +13,43 @@
 | بکاپ‌ها | `/root/kelidban-backups` |
 
 `config.php` و پوشهٔ `storage` (دیتابیس) هرگز در گیت نمی‌روند.
+
+---
+
+## Quick start (English)
+
+One-line install / management menu (Ubuntu or Debian, as root):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/silent4time/kelidban/main/install.sh | sudo bash
+```
+
+It clones or fast-forwards `/opt/kelidban-src` and opens the menu:
+
+```text
+ 1) Install                     6) Status & self-check
+ 2) Update                      7) Panel URL & admin password
+ 3) SSL certificate             8) Restart services
+ 4) Help                        9) View logs
+ 5) Exit                       10) Backup / restore database
+                               11) Uninstall
+```
+
+After the first install the same menu is `sudo kelidban menu`. Without a menu (scripts, CI):
+
+```bash
+sudo bash /opt/kelidban-src/install.sh install -y --domain license.example.com --email you@example.com
+sudo kelidban update        # pull latest code, keep config.php + database + panel URL, restart Apache
+sudo kelidban ssl           # Let's Encrypt certificate (port 443) + auto-renew; switches base_url to https
+sudo kelidban check         # self-check: Apache, PHP, ports 80/443, firewall, DNS, certificate, panel URL
+sudo kelidban url           # private panel address;  sudo kelidban reset-password  for a new random password
+```
+
+Options: `-y` (no questions), `--dir PATH`, `--domain HOST`, `--email ADDR`, `--branch NAME`, `--no-upgrade`, or a zip path.
+
+The panel URL is printed with `https://` only after a certificate is actually installed; until then it is
+`http://` (with the https redirect off), so the printed URL always opens. Also open TCP 80 and 443 in your
+hosting provider's firewall if it has one.
 
 ---
 
@@ -35,10 +72,10 @@
 ### نصب با یک دستور
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/silent4time/kelidban@main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/silent4time/kelidban/main/install.sh | sudo bash
 ```
 
-اسکریپت اول `apt update` و `apt upgrade` را می‌زند، توکن گیت‌هاب را می‌پرسد، مخزن را می‌گیرد و بعد دامنه و بقیه را خودش می‌پرسد.
+اسکریپت مخزن را در `/opt/kelidban-src` می‌گیرد (یا به‌روز می‌کند) و منوی مدیریت را باز می‌کند؛ گزینهٔ ۱ (Install) دامنه و ایمیل را می‌پرسد. تا وقتی گواهی SSL واقعاً گرفته نشده، آدرس پنل با `http://` چاپ می‌شود؛ بعد از گرفتن گواهی (گزینهٔ ۳ یا `sudo kelidban ssl`) به `https://` عوض می‌شود. اگر پنل باز نشد: `sudo kelidban check`.
 
 ### مرحله ۱: گرفتن کد روی سرور
 
@@ -103,6 +140,10 @@ sudo kelidban update
 | `kelidban status` | نسخه، آدرس پنل، وضعیت رمز، تعداد لایسنس‌ها، آخرین ورود |
 | `kelidban backup` | بکاپ فوری دیتابیس در `/root/kelidban-backups` |
 | `kelidban update` | آپدیت از گیت |
+| `kelidban menu` | منوی مدیریت (نصب، آپدیت، SSL، لاگ، بکاپ، حذف) |
+| `kelidban ssl` | گرفتن/تمدید گواهی SSL و روشن کردن https |
+| `kelidban check` | بررسی سلامت نصب و دلیل باز نشدن پنل |
+| `kelidban reset-password` | ساخت رمز تصادفی تازه برای پنل و نمایش آن |
 
 **رمز را فراموش کردید؟** `sudo kelidban password`
 **آدرس پنل یادتان رفت؟** `sudo kelidban url`

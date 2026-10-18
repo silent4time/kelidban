@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const KB_VERSION = '2.0.1';
+const KB_VERSION = '2.1.0';
 const KB_NAME = 'کلیدبان';
 
 function ls_config(): array

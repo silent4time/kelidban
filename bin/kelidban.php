@@ -91,12 +91,29 @@ function cmd_password(): void
 {
     $p1 = ask_hidden('New panel password (min 10 chars): ');
     if (mb_strlen($p1) < 10) {
-        fail('too short — use at least 10 characters (12+ recommended)');
+        fail('too short - use at least 10 characters (12+ recommended)');
     }
     $p2 = ask_hidden('Repeat password: ');
     if (!hash_equals($p1, $p2)) {
         fail('passwords do not match');
     }
+    save_password($p1);
+    // a password typed by the admin replaces the generated one that install.sh saved
+    @unlink('/root/kelidban-admin.txt');
+}
+
+/** Reads the new password as one line from STDIN (used by install.sh; nothing is echoed) */
+function cmd_password_stdin(): void
+{
+    $p1 = rtrim((string) fgets(STDIN), "\r\n");
+    if (mb_strlen($p1) < 10) {
+        fail('too short - use at least 10 characters (12+ recommended)');
+    }
+    save_password($p1);
+}
+
+function save_password(string $p1): void
+{
     kb_password_set($p1);
     ls_meta_delete('admin_pass_legacy');
     kb_bump_epoch();
@@ -134,7 +151,7 @@ function cmd_url(): void
 {
     $dirs = panel_dirs();
     if (!$dirs) {
-        fail('no panel address yet — run:  sudo kelidban new-url');
+        fail('no panel address yet - run:  sudo kelidban new-url');
     }
     foreach ($dirs as $d) {
         out(panel_url($d));
@@ -157,13 +174,88 @@ function cmd_status(): void
     $locks = (int) $pdo->query("SELECT COUNT(*) FROM meta WHERE k LIKE 'lfail:%'")->fetchColumn();
     out('Kelidban ' . KB_VERSION . '  (' . realpath(KB_ROOT) . ')');
     out('base_url      ' . $cfg['base_url']);
-    out('panel         ' . (panel_dirs() ? panel_url(panel_dirs()[0]) : '(none — sudo kelidban new-url)'));
-    out('password      ' . (ls_meta_get('admin_pass_hash') !== null ? 'hashed' . (ls_meta_get('admin_pass_weak') !== null ? ' (short!)' : '') : (kb_legacy_password() !== '' ? 'PLAINTEXT in config.php — run: sudo kelidban migrate' : 'NOT SET — run: sudo kelidban password')));
+    out('panel         ' . (panel_dirs() ? panel_url(panel_dirs()[0]) : '(none - sudo kelidban new-url)'));
+    out('password      ' . (ls_meta_get('admin_pass_hash') !== null ? 'hashed' . (ls_meta_get('admin_pass_weak') !== null ? ' (short!)' : '') : (kb_legacy_password() !== '' ? 'PLAINTEXT in config.php - run: sudo kelidban migrate' : 'NOT SET - run: sudo kelidban password')));
     out('api key       ' . ls_api_key_source());
     out('licenses      ' . $pdo->query('SELECT COUNT(*) FROM licenses')->fetchColumn());
     out('last login    ' . ($last ? $last['at'] . ' UTC from ' . $last['ip'] : '-'));
     out('lock records  ' . $locks);
     out('force_https   ' . (empty($cfg['force_https']) ? 'off' : 'on'));
+}
+
+/** none | legacy | weak | ok */
+function cmd_pw_state(): void
+{
+    if (ls_meta_get('admin_pass_hash') === null) {
+        out(kb_legacy_password() !== '' ? 'legacy' : 'none');
+        return;
+    }
+    out(ls_meta_get('admin_pass_weak') !== null ? 'weak' : 'ok');
+}
+
+const KB_CONFIG_KEYS = ['base_url' => 'string', 'force_https' => 'bool', 'trust_proxy' => 'bool'];
+
+function cmd_config_get(array $args): void
+{
+    $key = $args[0] ?? '';
+    $cfg = ls_config();
+    if ($key === '' || !array_key_exists($key, $cfg) || !is_scalar($cfg[$key])) {
+        fail('usage: config-get <key>   (e.g. base_url, force_https, db_path)');
+    }
+    $v = $cfg[$key];
+    out(is_bool($v) ? ($v ? 'true' : 'false') : (string) $v);
+}
+
+/** Changes one known key in config.php in place (other settings and comments are kept) */
+function cmd_config_set(array $args): void
+{
+    $key = $args[0] ?? '';
+    $value = $args[1] ?? null;
+    if (!isset(KB_CONFIG_KEYS[$key]) || $value === null) {
+        fail('usage: config-set ' . implode('|', array_keys(KB_CONFIG_KEYS)) . ' <value>');
+    }
+    if (KB_CONFIG_KEYS[$key] === 'bool') {
+        $v = strtolower(trim($value));
+        if (!in_array($v, ['true', 'false', '1', '0', 'on', 'off', 'yes', 'no'], true)) {
+            fail('value must be true or false');
+        }
+        $php = in_array($v, ['true', '1', 'on', 'yes'], true) ? 'true' : 'false';
+    } else {
+        $value = rtrim(trim($value), '/');
+        if (!preg_match('#^https?://[A-Za-z0-9.\-]+(:\d+)?$#', $value)) {
+            fail('base_url must look like https://license.example.com or http://203.0.113.10');
+        }
+        $php = var_export($value, true);
+    }
+    $file = KB_ROOT . '/config.php';
+    if (!is_file($file)) {
+        fail('config.php not found');
+    }
+    $src = (string) file_get_contents($file);
+    $re = '/(\'' . preg_quote($key, '/') . '\'\s*=>\s*)(?:\'(?:\\\\.|[^\'\\\\])*\'|"(?:\\\\.|[^"\\\\])*"|true|false|\d+)/i';
+    $new = preg_replace_callback($re, static fn(array $m): string => $m[1] . $php, $src, 1, $n);
+    if ($new === null) {
+        fail('could not parse config.php');
+    }
+    if ($n === 0) {
+        $new = preg_replace_callback('/return\s*(\[|array\s*\()/', static fn(array $m): string => $m[0] . "\n    '" . $key . "' => " . $php . ',', $src, 1, $n);
+        if ($new === null || $n === 0) {
+            fail('could not find the settings array in config.php');
+        }
+    }
+    if ($new !== $src) {
+        $tmp = $file . '.tmp';
+        if (file_put_contents($tmp, $new) === false) {
+            fail('cannot write ' . $tmp);
+        }
+        @chmod($tmp, fileperms($file) & 0777);
+        @chown($tmp, fileowner($file));
+        @chgrp($tmp, filegroup($file));
+        if (!rename($tmp, $file)) {
+            fail('cannot replace ' . $file);
+        }
+    }
+    out('[OK] ' . $key . ' = ' . $php);
 }
 
 function cmd_backup(array $args): void
@@ -173,6 +265,9 @@ function cmd_backup(array $args): void
         fail('cannot create ' . $dir);
     }
     $dest = rtrim($dir, '/') . '/licenses_' . gmdate('Ymd_His') . '.sqlite';
+    for ($i = 2; file_exists($dest); $i++) {
+        $dest = rtrim($dir, '/') . '/licenses_' . gmdate('Ymd_His') . '-' . $i . '.sqlite';
+    }
     ls_db()->exec('VACUUM INTO ' . ls_db()->quote($dest));
     chmod($dest, 0600);
     out('[OK] ' . $dest);
@@ -183,6 +278,18 @@ $cmd = array_shift($args) ?? 'help';
 switch ($cmd) {
     case 'password':
         cmd_password();
+        break;
+    case 'password-stdin':
+        cmd_password_stdin();
+        break;
+    case 'pw-state':
+        cmd_pw_state();
+        break;
+    case 'config-get':
+        cmd_config_get($args);
+        break;
+    case 'config-set':
+        cmd_config_set($args);
         break;
     case 'migrate':
         cmd_migrate();
@@ -209,7 +316,7 @@ switch ($cmd) {
     case 'pw-ok':
         exit(ls_meta_get('admin_pass_hash') !== null && ls_meta_get('admin_pass_weak') === null ? 0 : 1);
     default:
-        out('Kelidban ' . KB_VERSION . ' — usage: sudo kelidban <command>');
+        out('Kelidban ' . KB_VERSION . ' - usage: sudo kelidban <command>');
         out('  url          show the private panel address');
         out('  password     set / change the panel password');
         out('  new-url      make a new panel address (old one stops working)');
@@ -217,6 +324,11 @@ switch ($cmd) {
         out('  logout-all   sign out every open panel session');
         out('  status       version, panel address, password state, counts');
         out('  backup [dir] copy the database (default /root/kelidban-backups)');
-        out('  update       pull the latest code and run the installer');
+        out('  update       pull the latest code and run the installer (keeps config and data)');
+        out('  menu         interactive management menu (install, update, SSL, logs, backup...)');
+        out('  check        self-check: web server, ports, firewall, SSL, panel URL');
+        out('  ssl          obtain / renew the Let\'s Encrypt certificate');
+        out('  reset-password  generate a new random panel password and show it');
+        out('  password-stdin  read a new password from STDIN (for scripts)');
         exit($cmd === 'help' ? 0 : 1);
 }
